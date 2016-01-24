@@ -1,0 +1,11 @@
+{
+  "id": "{976767A6-34EC-299D-7B8A-17CD37C5F000}",
+  "name": "ips4Sony",
+  "type": 3,
+  "vendor": "",
+  "aliases": ["ips4str_dn1050"],
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "SONY"
+}

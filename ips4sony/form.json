@@ -1,0 +1,15 @@
+{
+  "elements": [
+    {"type":"ValidationTextBox", "name": "Host","caption":"Hostname oder IP"},
+    {"type":"NumberSpinner","name":"Port","caption":"Port"},
+    {"type":"NumberSpinner","name":"Timeout","caption":"Timeout"},
+    { "type": "Label", "label": "Benutzername und Passwort (in den meisten fällen nicht erforderlich)" },
+    { "type": "ValidationTextBox", "name": "Username", "caption": "Username" },
+    { "type": "PasswordTextBox", "Password": "Pass", "caption": "Password" },
+    { "type": "Label", "label": "Intervall für die Aktualisierung aller Daten:" },
+    { "type": "IntervalBox", "name": "IntervallRefresh", "caption": "Sekunden" }
+  ],
+  "actions": [
+    { "type": "Button", "label": "-Testen-", "onClick": "SONY_Test($id);" }
+  ]
+}
