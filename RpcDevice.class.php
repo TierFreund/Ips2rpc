@@ -35,6 +35,9 @@ abstract class RpcDevice {
 	public function BaseUrl($fullUrl=false){
 		return self::IO()->BaseUrl($fullUrl);
 	}
+    public function sendPacket( $content ){
+		return $this->_io->sendPacket($content);
+	}	
 		
 	protected abstract function GetServiceConnData($name); // Override This in Own Modules
 	protected function Call($service,$action,$arguments,$filter=null){

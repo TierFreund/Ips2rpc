@@ -1,0 +1,11 @@
+{
+  "id": "{976767A6-34EC-233D-7B8A-17CD37C5F444}",
+  "name": "ips4Sonos",
+  "type": 3,
+  "vendor": "RPCLIB",
+  "aliases": ["Sonos ZonePlayer Device"],
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "SONOS"
+}

@@ -3,14 +3,15 @@ define ('STATUS_ERR',  101);
 define ('STATUS_OK',   102);
 define ('ERR_NOHOST',  201);
 define ('ERR_ONLINE',  202);
-define ('ERR_NOPBNAME',301);
-define ('ERR_TESTCALL',302);
-define ('ERR_NOAUTH',  303);
+define ('ERR_PORTERR', 203);
+define ('ERR_TESTCALL',301);
+define ('ERR_NOAUTH',  302);
 require_once( __DIR__ . '/RpcIo.class.php');
 require_once( __DIR__ . '/RpcDevice.class.php');
 
 abstract class RpcModule extends IPSModule{
 	private $_oAPI=null;
+	private $_aActions=null;
 	private $_boIsOnline=null;
 	
 	public function Create(){
@@ -30,24 +31,47 @@ abstract class RpcModule extends IPSModule{
                                              Array(true, "online",  "", -1)
         ));
         $this->RegisterVariableBoolean("OnlineState", "Online Status","RPC.OnlineState",9);
+        $this->RegisterProfileBooleanEx("RPC.OnOff", "Information", "", "", Array(
+                                             Array(false, "Aus",  "", -1),
+                                             Array(true, "Ein",  "", -1)
+        ));
 	}
 	
 	
 	public function Test(){
-		if($this->GetOnlineState())return true;
+		if($this->GetOnlineState()){
+			$this->SetStatus(STATUS_OK);
+			return true;
+		}	
 		$this->SetStatus(ERR_ONLINE);
 		return false;
 	}
-		
+	public function Update(){
+		if(!$this->_aActions)return true;
+		foreach($this->_aActions as $n=>$t){
+			$v=$this->{"Get$n"}();
+			switch($t){
+				case 0: $this->SetValueBoolean($n,$v);break;
+				case 1: $this->SetValueInteger($n,$v);break;
+				case 2: $this->SetValueFloat($n,$v);break;
+				case 3: $this->SetValueString($n,$v);break;
+			}	
+		}
+		return true;	
+	}	
+	public function RequestAction($Ident, $Value){
+		if(empty($this->_aActions[$Ident]))
+			throw new Exception('\''.$ident.'\' is not implemented in Class '. __CLASS__);
+		return $this->{"Set$Ident"}($Value);
+	}
+	protected abstract function CreateApi($url, $port, $type);
 	protected function CheckConfig(){
 		if(!$url=$this->ReadPropertyString("Host"))
 			$this->SetStatus(ERR_NOHOST);
-		else if((!$port=$this->ReadPropertyString("Port"))||$port<0)
-			$this->SetStatus(101);
+		else if($this->ReadPropertyString("Port")<0)
+			$this->SetStatus(ERR_PORTERR);
 	    else return true;
 	}
-	protected abstract function CreateApi($url, $port, $type);
-
 	protected function IsAuthSet(){
 		return !empty($this->ReadPropertyString("Username"));
 	}		
@@ -114,13 +138,15 @@ abstract class RpcModule extends IPSModule{
 	}	
 	
 	final protected function RegisterAction($Ident, $Name, $Type, $Profile='', $Position=0){
-		$r=self::RegisterVariable($Ident, $Name, $Type, $Profile, $Position);
-		self::EnableAction($Ident);
+		$r=$this->MaintainVariable($Ident, $Name, $Type, $Profile, $Position,true);
+		$this->EnableAction($Ident);
+		$this->_aActions[$Ident]=$Type;
 		return $r;
 	}	
 	final protected function UnRegisterAction($Ident){
-		self::DisableAction($Ident);
-		self::UnregisterVariable($Ident);
+		$this->DisableAction($Ident);
+		$this->UnregisterVariable($Ident);
+		unset($this->_aActions[$Ident]);
 	}	
 	
     protected function RegisterProfileBoolean($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize) {
@@ -231,10 +257,9 @@ abstract class RpcModule extends IPSModule{
 		if(!$this->_oAPI){
 			if(!$this->GetOnlineState())return null;
 			if(!$host=$this->ReadPropertyString("Host"))throw new Exception ("No Hostname",E_USER_WARNING);
-			if(!$port=$this->ReadPropertyString("Port"))throw new Exception ("Invalid Port",E_USER_WARNING);
+			if(($port=$this->ReadPropertyString("Port"))<0)throw new Exception ("Invalid Port",E_USER_WARNING);
 			if (!$type=$this->ReadPropertyString("ConnectionType"))throw new Exception ("No Conetion Type",E_USER_WARNING);
-			$this->_oAPI=$this->CreateApi($host,$port,$type);
-			if(!$this->_oAPI)throw new Exception ("API Creation Error",E_USER_WARNING);
+			if(!$this->_oAPI=$this->CreateApi($host,$port,$type))throw new Exception ("API Creation Error",E_USER_WARNING);
 			$this->_oAPI->SetAuth($this->ReadPropertyString('Username'),$this->ReadPropertyString('Password'));
 		}
 		return $this->_oAPI;

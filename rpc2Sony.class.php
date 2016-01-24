@@ -2,7 +2,7 @@
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  |  Class           :rpc2Sony extends uRpcDevice                                  |
  |  Version         :2.2                                                          |
- |  BuildDate       :Tue 19.01.2016 11:21:28                                      |
+ |  BuildDate       :Sun 24.01.2016 01:33:31                                      |
  |  Publisher       :(c)2016 Xaver Bauer                                          |
  |  Contact         :xaver65@gmail.com                                            |
  |  Desc            :PHP Classes to Control MULTI CHANNEL AV RECEIVER             |
@@ -28,37 +28,46 @@ if (!DEFINED('RPC2SONY_STATE_STOP')) {
   DEFINE('RPC2SONY_STATE_TRANS',5);
   DEFINE('RPC2SONY_STATE_ERROR',6);
 }
-class rpc2Sony extends uRpcDevice {
+class rpc2Sony extends RpcDevice {
   protected $_boRepeat=false;
   protected $_boShuffle=false;
   protected $_boAll=false;
   // Name:string
   protected function GetServiceConnData($name){
     switch($name){
-      case  'RenderingControl' : return [8080,"urn:schemas-upnp-org:service:RenderingControl:1","/RenderingControl/ctrl","/RenderingControl/evt","/RenderingControl/desc.xml"];
-      case 'ConnectionManager' : return [8080,"urn:schemas-upnp-org:service:ConnectionManager:1","/ConnectionManager/ctrl","/ConnectionManager/evt","/ConnectionManager/desc.xml"];
-      case       'AVTransport' : return [8080,"urn:schemas-upnp-org:service:AVTransport:1","/AVTransport/ctrl","/AVTransport/evt","/AVTransport/desc.xml"];
-      case              'IRCC' : return [8080,"urn:schemas-sony-com:service:IRCC:1","/upnp/control/IRCC","","/IRCCSCPD.xml"];
-      case          'X_Tandem' : return [8080,"urn:schemas-sony-com:service:X_Tandem:1","/upnp/control/TANDEM","","/TANDEMSCPD.xml"];
+      case               'RenderingControl' : return [8080,"urn:schemas-upnp-org:service:RenderingControl:1","/RenderingControl/ctrl","/RenderingControl/evt","/RenderingControl/desc.xml"];
+      case 'ConnectionManagerMediaRenderer' : return [8080,"urn:schemas-upnp-org:service:ConnectionManager:1","/ConnectionManager/ctrl","/ConnectionManager/evt","/ConnectionManager/desc.xml"];
+      case                    'AVTransport' : return [8080,"urn:schemas-upnp-org:service:AVTransport:1","/AVTransport/ctrl","/AVTransport/evt","/AVTransport/desc.xml"];
+      case                           'IRCC' : return [8080,"urn:schemas-sony-com:service:IRCC:1","/upnp/control/IRCC","","/IRCCSCPD.xml"];
+      case                       'X_Tandem' : return [8080,"urn:schemas-sony-com:service:X_Tandem:1","/upnp/control/TANDEM","","/TANDEMSCPD.xml"];
+      case               'ContentDirectory' : return [8000,"urn:schemas-upnp-org:service:ContentDirectory:1","/ContentDirectory_ctrl","/ContentDirectory_evt","/ContentDirectory_desc.xml"];
+      case   'ConnectionManagerMediaServer' : return [8000,"urn:schemas-upnp-org:service:ConnectionManager:1","/ConnectionManager_ctrl","/ConnectionManager_evt","/ConnectionManager_desc.xml"];
     }
     return null;
   }
   // url:string, defaultPort:ui4, requestType:string
   public function __construct($url, $defaultPort=8080, $requestType='soap'){
-    parent::__construct($url,$defaultPort,$requestType);
+    parent::__construct($url,$defaultPort?$defaultPort:8080,$requestType);
+  }
+  // ObjectID:string, BrowseFlag:string, Filter:string, StartingIndex:ui4, RequestedCount:ui4, SortCriteria:string
+  public function Browse($ObjectID,$BrowseFlag,$Filter,$StartingIndex,$RequestedCount,$SortCriteria){
+    if (!$this->GetOnlineState()) return null;
+    $args=array('ObjectID'=>$ObjectID,'BrowseFlag'=>$BrowseFlag,'Filter'=>$Filter,'StartingIndex'=>$StartingIndex,'RequestedCount'=>$RequestedCount,'SortCriteria'=>$SortCriteria);
+    $filter=array('Result','NumberReturned','TotalMatches','UpdateID');
+    return self::Call('ContentDirectory','Browse',$args,$filter);
   }
 
-  public function GetCurrentConnectionIDs(){
+  public function GetCurrentConnectionIDsConnectionManager(){
     if (!$this->GetOnlineState()) return null;
     $filter=array('ConnectionIDs');
-    return self::Call('ConnectionManager','GetCurrentConnectionIDs',null,$filter);
+    return self::Call('ConnectionManagerMediaServer','GetCurrentConnectionIDs',null,$filter);
   }
   // ConnectionID:i4
-  public function GetCurrentConnectionInfo($ConnectionID){
+  public function GetCurrentConnectionInfoConnectionManager($ConnectionID){
     if (!$this->GetOnlineState()) return null;
     $args=array('ConnectionID'=>$ConnectionID);
     $filter=array('RcsID','AVTransportID','ProtocolInfo','PeerConnectionManager','PeerConnectionID','Direction','Status');
-    return self::Call('ConnectionManager','GetCurrentConnectionInfo',$args,$filter);
+    return self::Call('ConnectionManagerMediaServer','GetCurrentConnectionInfo',$args,$filter);
   }
   // Instance:ui4
   public function GetCurrentTransportActions($Instance=0){
@@ -96,26 +105,44 @@ class rpc2Sony extends uRpcDevice {
     return self::Call('AVTransport','GetPositionInfo',$args,$filter);
   }
 
-  public function GetProtocolInfo(){
+  public function GetProtocolInfoConnectionManager(){
     if (!$this->GetOnlineState()) return null;
     $filter=array('Source','Sink');
-    return self::Call('ConnectionManager','GetProtocolInfo',null,$filter);
+    return self::Call('ConnectionManagerMediaServer','GetProtocolInfo',null,$filter);
   }
   // Instance:ui4
   public function GetRepeat($Instance=0) {
     if(empty($this->_PlayModes))$this->UpdatePlayMode($Instance);
     return $this->_boRepeat;
   }
+
+  public function GetSearchCapabilities(){
+    if (!$this->GetOnlineState()) return null;
+    $filter=array('SearchCaps');
+    return self::Call('ContentDirectory','GetSearchCapabilities',null,$filter);
+  }
   // Instance:ui4
   public function GetShuffle($Instance=0) {
     if(empty($this->_PlayModes))$this->UpdatePlayMode($Instance);
     return $this->_boShuffle;
+  }
+
+  public function GetSortCapabilities(){
+    if (!$this->GetOnlineState()) return null;
+    $filter=array('SortCaps');
+    return self::Call('ContentDirectory','GetSortCapabilities',null,$filter);
   }
   // Instance:ui4
   public function GetState($Instance=0) {
     $states=array('STOPPED'=>RPC2SONY_STATE_STOP,'PLAYING'=>RPC2SONY_STATE_PLAY,'PAUSED_PLAYBACK'=>RPC2SONY_STATE_PAUSE,'TRANSITIONING'=>RPC2SONY_STATE_TRANS,'NO_MEDIA_PRESENT'=>RPC2SONY_STATE_ERROR);
     $v=self::GetTransportInfo($Instance);
     return ($v&&($s=$v['CurrentTransportState'])&&isset($a[$s]))?$a[$s]:RPC2SONY_STATE_ERROR;
+  }
+
+  public function GetSystemUpdateID(){
+    if (!$this->GetOnlineState()) return null;
+    $filter=array('Id');
+    return self::Call('ContentDirectory','GetSystemUpdateID',null,$filter);
   }
   // Instance:ui4
   public function GetTransportInfo($Instance=0){
@@ -253,18 +280,32 @@ class rpc2Sony extends uRpcDevice {
     list($this->_boRepeat,$this->_boShuffle,$this->_boAll)=$modes[$t['PlayMode']];
   }
   // AVTInstanceID:ui4, ActionDirective:string
-  public function X_ExecuteOperation($AVTInstanceID,$ActionDirective){
+  public function X_ExecuteOperationAVTransport($AVTInstanceID,$ActionDirective){
     if (!$this->GetOnlineState()) return null;
     $args=array('AVTInstanceID'=>$AVTInstanceID,'ActionDirective'=>$ActionDirective);
     $filter=array('Result');
     return self::Call('AVTransport','X_ExecuteOperation',$args,$filter);
   }
+  // ObjectID:string, ActionDirective:string
+  public function X_ExecuteOperationContentDirectory($ObjectID,$ActionDirective){
+    if (!$this->GetOnlineState()) return null;
+    $args=array('ObjectID'=>$ObjectID,'ActionDirective'=>$ActionDirective);
+    $filter=array('Result','UpdateID');
+    return self::Call('ContentDirectory','X_ExecuteOperation',$args,$filter);
+  }
   // AVTInstanceID:ui4
-  public function X_GetOperationList($AVTInstanceID){
+  public function X_GetOperationListAVTransport($AVTInstanceID){
     if (!$this->GetOnlineState()) return null;
     $args=array('AVTInstanceID'=>$AVTInstanceID);
     $filter=array('OperationList');
     return self::Call('AVTransport','X_GetOperationList',$args,$filter);
+  }
+  // ObjectID:string
+  public function X_GetOperationListContentDirectory($ObjectID){
+    if (!$this->GetOnlineState()) return null;
+    $args=array('ObjectID'=>$ObjectID);
+    $filter=array('OperationList');
+    return self::Call('ContentDirectory','X_GetOperationList',$args,$filter);
   }
   // CategoryCode:string
   public function X_GetStatus($CategoryCode){

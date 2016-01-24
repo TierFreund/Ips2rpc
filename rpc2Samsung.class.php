@@ -28,7 +28,7 @@ if (!DEFINED('RPC2SAMSUNG_STATE_STOP')) {
   DEFINE('RPC2SAMSUNG_STATE_TRANS',5);
   DEFINE('RPC2SAMSUNG_STATE_ERROR',6);
 }
-class rpc2Samsung extends uRpcDevice {
+class rpc2samsung extends RpcDevice {
   protected $_boRepeat=false;
   protected $_boShuffle=false;
   protected $_boAll=false;
@@ -46,7 +46,7 @@ class rpc2Samsung extends uRpcDevice {
   }
   // url:string, defaultPort:ui4, requestType:string
   public function __construct($url, $defaultPort=7676, $requestType='soap'){
-    parent::__construct($url,$defaultPort,$requestType);
+    parent::__construct($url,$defaultPort?$defaultPort:7676,$requestType);
   }
   // ReservationType:string, RemindInfo:string
   public function AddSchedule($ReservationType,$RemindInfo){

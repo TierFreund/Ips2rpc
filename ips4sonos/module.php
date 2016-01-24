@@ -1,7 +1,7 @@
 <?
 require_once('/../RpcModule.class.php');
 require_once('/../RpcIoSoap.class.php');
-class ips4sony extends RpcModule {
+class ips4sonos extends RpcModule {
 	
 	public function Create(){
         parent::Create();
@@ -9,10 +9,29 @@ class ips4sony extends RpcModule {
 	}
     public function ApplyChanges(){
         parent::ApplyChanges();
+		
 		$this->RegisterAction('Volume','Lautstärke',$typ=1,$profil='');
-		$this->RegisterAction('Mute','Stumm',$typ=0,$profil='');
+		$this->RegisterAction('Mute','Stumm',$typ=0,$profil='RPC.OnOff');
+
+		$this->RegisterVariableInteger('GroupMember','Gruppe',0);
 		if ($this->CheckConfig()===true){
+			$zoneConfig=IPS_GetKernelDir().'/modules/ips2rpc/sonos_zone.config';
+	
+			if(!file_exists($zoneConfig)){
+				$file=$this->API()->BaseUrl(true).'/status/topology';
+					if($xml=simplexml_load_file( $file )){
+					$out=[];
+					foreach($xml->ZonePlayers->ZonePlayer as $item){
+						if($v=((array)$item->attributes()))$v=array_shift($v);
+						$v['name']=(string)$item;
+						$out[$v['name']]=$v;
+					}
+					file_put_contents($zoneConfig,serialize($out));
+				}
+			}				
+
 			$this->Update();
+			
 		}
 	}	
 	
@@ -23,8 +42,8 @@ class ips4sony extends RpcModule {
 	}
 	
 	protected function CreateApi($url, $port, $type){
-		require_once('/../rpc2sony.class.php');
-		return new Rpc2Sony($url, $port, $type);	
+		require_once('/../rpc2sonos.class.php');
+		return new Rpc2Sonos($url, $port, $type);	
 	}
 	public function Test(){
 		if(!parent::Test())return false;
